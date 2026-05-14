@@ -9,35 +9,28 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.pomo.pomodoro"
+        applicationId = "com.pomo.kori"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "2.0.0"
         splits.abi.reset()
     }
 
-    buildFeatures {
-        compose = true
-    }
+    buildFeatures { compose = true }
 
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.10"
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
+    kotlinOptions { jvmTarget = "17" }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
 }
 
@@ -57,5 +50,15 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    // HTTP client for mentor sync (Apache 2.0)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Gson for JSON (Apache 2.0)
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Navigation Compose (MIT)
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
