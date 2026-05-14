@@ -17,172 +17,79 @@ object NotificationHelper {
 
     const val CHANNEL_ID_RED_ALERT = "red_alert_channel"
     const val CHANNEL_ID_TIMER = "pomodoro_timer_channel"
-
     private const val NOTIFICATION_ID_TIMER = 1001
     private const val NOTIFICATION_ID_RED_ALERT = 1002
 
-    /**
-     * Create notification channels.
-     * Must be called once in Application.onCreate() or MainActivity.onCreate().
-     */
     fun createChannels(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        // ------------------------------------------------------------------
-        // CHANNEL 1: RED ALERT — highest priority, custom loud sound
-        // ------------------------------------------------------------------
-        val redAlertSound: Uri = Uri.parse(
-            "android.resource://${context.packageName}/raw/red_alert"
-        )
-
-        val redAlertAttrs = AudioAttributes.Builder()
+        val redAlertSound: Uri = try {
+            Uri.parse("android.resource://${context.packageName}/raw/red_alert")
+        } catch (_: Exception) {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        }
+        val alarmAttrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
-
-        val redAlertChannel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel(
-                CHANNEL_ID_RED_ALERT,
-                "Red Alert — Skipped Sessions",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Loud alarm for skipped or cancelled Pomodoro sessions"
-                setSound(redAlertSound, redAlertAttrs)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 500, 300, 500, 300, 1000)
-                enableLights(true)
-                // Bypass Do Not Disturb so it always rings
-                setBypassDnd(true)
-                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
-            }
-        } else {
-            // Pre-Oreo, sound is configured on the notification itself
-            null
-        }
-
-        // ------------------------------------------------------------------
-        // CHANNEL 2: Timer foreground service (lower priority, no sound)
-        // ------------------------------------------------------------------
-        val timerChannel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel(
-                CHANNEL_ID_TIMER,
-                "Pomodoro Timer",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows current Pomodoro timer progress"
-                setSound(null, null)
-                enableVibration(false)
-            }
-        } else {
-            null
-        }
-
-        // Register channels
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            redAlertChannel?.let { manager.createNotificationChannel(it) }
-            timerChannel?.let { manager.createNotificationChannel(it) }
+            manager.createNotificationChannel(NotificationChannel(
+                CHANNEL_ID_RED_ALERT, "Red Alert", NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Loud alarm for skipped/cancelled sessions"
+                setSound(redAlertSound, alarmAttrs); enableVibration(true)
+                vibrationPattern = longArrayOf(0,500,300,500,300,1000)
+                enableLights(true); setBypassDnd(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            })
+            manager.createNotificationChannel(NotificationChannel(
+                CHANNEL_ID_TIMER, "Pomodoro Timer", NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Timer progress"; setSound(null,null); enableVibration(false)
+            })
         }
     }
 
-    /**
-     * Show the persistent timer notification for the foreground service.
-     */
-    fun showTimerNotification(
-        context: Context,
-        secondsRemaining: Int,
-        totalSeconds: Int
-    ) {
-        val openIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val openPendingIntent = PendingIntent.getActivity(
-            context, 0, openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val minutes = secondsRemaining / 60
-        val seconds = secondsRemaining % 60
-        val progress = ((totalSeconds - secondsRemaining).toFloat() / totalSeconds * 100).toInt()
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_TIMER)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Pomodoro in Progress")
-            .setContentText("${minutes}:${String.format("%02d", seconds)} remaining")
-            .setContentIntent(openPendingIntent)
-            .setOngoing(true)
-            .setSilent(true)
-            .setProgress(100, progress, false)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_TIMER, notification)
+    fun showTimerNotification(context: Context, secRemaining: Int, totalSec: Int) {
+        val pi = PendingIntent.getActivity(context,0,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val m = secRemaining/60; val s = secRemaining%60
+        val pct = ((totalSec-secRemaining).toFloat()/totalSec*100).toInt()
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_TIMER,
+            NotificationCompat.Builder(context, CHANNEL_ID_TIMER)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle("Pomodoro in Progress")
+                .setContentText("$m:${String.format("%02d",s)} remaining")
+                .setContentIntent(pi).setOngoing(true).setSilent(true)
+                .setProgress(100,pct,false).setPriority(NotificationCompat.PRIORITY_LOW).build())
     }
 
-    /**
-     * THE RED ALERT — trigger when a session is skipped or cancelled.
-     * Uses the custom loud sound channel, repeats, and requires explicit dismiss.
-     */
     fun triggerRedAlert(context: Context, reason: String) {
-        val openIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val openPendingIntent = PendingIntent.getActivity(
-            context, 1, openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Dismiss action — marks the alert as acknowledged
-        val dismissIntent = Intent(context, RedAlertReceiver::class.java).apply {
-            action = "com.pomo.DISMISS_RED_ALERT"
-        }
-        val dismissPendingIntent = PendingIntent.getBroadcast(
-            context, 2, dismissIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID_RED_ALERT)
+        val pi = PendingIntent.getActivity(context,1,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val di = PendingIntent.getBroadcast(context,2,
+            Intent(context, RedAlertReceiver::class.java).apply { action = "com.pomo.DISMISS_RED_ALERT" },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val b = NotificationCompat.Builder(context, CHANNEL_ID_RED_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("\uD83D\uDD14 RED ALERT — Session Skipped!")
-            .setContentText(reason)
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText("$reason\n\nThis session has been marked as FAILED. Tap to view your stats.")
-            )
-            .setContentIntent(openPendingIntent)
-            .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Acknowledge",
-                dismissPendingIntent
-            )
-            .setAutoCancel(false)           // Must be manually dismissed
-            .setOngoing(true)               // Stays until acknowledged
-            .setFullScreenIntent(openPendingIntent, true) // Show on locked screen
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
-        // Pre-Oreo: set sound directly
+            .setContentTitle("\uD83D\uDD14 RED ALERT — Session Skipped!").setContentText(reason)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$reason\n\nSession FAILED."))
+            .setContentIntent(pi)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel,"Acknowledge",di)
+            .setAutoCancel(false).setOngoing(true).setFullScreenIntent(pi,true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            notification.setSound(
-                Uri.parse("android.resource://${context.packageName}/raw/red_alert"),
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .build()
-            )
-            notification.priority = NotificationCompat.PRIORITY_MAX
+            b.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+            b.priority = NotificationCompat.PRIORITY_MAX
         }
-
-        NotificationManagerCompat.from(context).notify(
-            NOTIFICATION_ID_RED_ALERT,
-            notification.build()
-        )
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_RED_ALERT, b.build())
     }
 
-    fun cancelTimerNotification(context: Context) {
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_TIMER)
-    }
-
-    fun cancelRedAlert(context: Context) {
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_RED_ALERT)
-    }
+    fun cancelTimerNotification(c: Context) { NotificationManagerCompat.from(c).cancel(NOTIFICATION_ID_TIMER) }
+    fun cancelRedAlert(c: Context) { NotificationManagerCompat.from(c).cancel(NOTIFICATION_ID_RED_ALERT) }
 }
