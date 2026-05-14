@@ -25,7 +25,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        
+        <receiver
+            android:name=".notification.RedAlertReceiver"
+            android:exported="false" />
+        
         <!-- Foreground service for persistent timer -->
         <service
             android:name=".TimerService"
