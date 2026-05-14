@@ -5,7 +5,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -27,10 +26,10 @@ object NotificationHelper {
         } catch (_: Exception) {
             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         }
-        val alarmAttrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ALARM)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+        val alarmAttrs = android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setFlags(android.media.AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(
@@ -72,19 +71,23 @@ object NotificationHelper {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val di = PendingIntent.getBroadcast(context,2,
-            Intent(context, RedAlertReceiver::class.java).apply { action = "com.pomo.DISMISS_RED_ALERT" },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            Intent(context, RedAlertReceiver::class.java).apply {
+                action = "com.pomo.DISMISS_RED_ALERT"
+            }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val b = NotificationCompat.Builder(context, CHANNEL_ID_RED_ALERT)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("\uD83D\uDD14 RED ALERT — Session Skipped!").setContentText(reason)
+            .setContentTitle("\uD83D\uDD14 RED ALERT — Session Skipped!")
+            .setContentText(reason)
             .setStyle(NotificationCompat.BigTextStyle().bigText("$reason\n\nSession FAILED."))
             .setContentIntent(pi)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel,"Acknowledge",di)
-            .setAutoCancel(false).setOngoing(true).setFullScreenIntent(pi,true)
-            .setCategory(NotificationCompat.CATEGORY_ALARM).setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Acknowledge", di)
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .setFullScreenIntent(pi, true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            b.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build())
+            b.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
             b.priority = NotificationCompat.PRIORITY_MAX
         }
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_RED_ALERT, b.build())
