@@ -7,24 +7,16 @@ import com.pomo.notification.NotificationHelper
 import kotlinx.coroutines.*
 
 class TimerService : Service() {
-
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var timerJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> {
-                val totalSeconds = intent.getIntExtra(EXTRA_TOTAL_SECONDS, 1500)
-                startTimer(totalSeconds)
-            }
-            ACTION_UPDATE -> {
-                val remaining = intent.getIntExtra(EXTRA_REMAINING_SECONDS, 0)
-                val total = intent.getIntExtra(EXTRA_TOTAL_SECONDS, 1500)
-                NotificationHelper.showTimerNotification(this, remaining, total)
-            }
-            ACTION_STOP -> {
-                stopSelf()
-            }
+            ACTION_START -> startTimer(intent.getIntExtra(EXTRA_TOTAL_SECONDS, 1500))
+            ACTION_UPDATE -> NotificationHelper.showTimerNotification(this,
+                intent.getIntExtra(EXTRA_REMAINING_SECONDS,0),
+                intent.getIntExtra(EXTRA_TOTAL_SECONDS, 1500))
+            ACTION_STOP -> stopSelf()
         }
         return START_NOT_STICKY
     }
@@ -35,22 +27,15 @@ class TimerService : Service() {
             var remaining = totalSeconds
             while (remaining > 0) {
                 NotificationHelper.showTimerNotification(this@TimerService, remaining, totalSeconds)
-                delay(1000)
-                remaining--
+                delay(1000); remaining--
             }
-            // Timer finished naturally — will be handled by ViewModel
             NotificationHelper.cancelTimerNotification(this@TimerService)
             stopSelf()
         }
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onDestroy() {
-        timerJob?.cancel()
-        scope.cancel()
-        super.onDestroy()
-    }
+    override fun onBind(intent: Intent?) = null
+    override fun onDestroy() { timerJob?.cancel(); scope.cancel(); super.onDestroy() }
 
     companion object {
         const val ACTION_START = "com.pomo.action.START_TIMER"
