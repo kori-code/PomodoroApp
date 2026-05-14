@@ -15,12 +15,11 @@ interface PomodoroDao {
     fun getSessionsByDate(date: String): Flow<List<PomodoroSession>>
 
     @Query("""
-        SELECT 
-            date,
-            SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
-            SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) AS failed,
-            SUM(CASE WHEN status = 'SKIPPED' THEN 1 ELSE 0 END) AS skipped,
-            COUNT(*) AS total
+        SELECT date,
+               SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
+               SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) AS failed,
+               SUM(CASE WHEN status = 'SKIPPED' THEN 1 ELSE 0 END) AS skipped,
+               COUNT(*) AS total
         FROM pomodoro_sessions
         GROUP BY date
         ORDER BY date DESC
