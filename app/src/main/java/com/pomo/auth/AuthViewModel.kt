@@ -31,6 +31,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
     
+    init {
+        // Check for existing logged-in user on app start
+        viewModelScope.launch {
+            val loggedInUser = userDao.getLoggedInUser()
+            if (loggedInUser != null) {
+                _uiState.value = _uiState.value.copy(
+                    isAuthenticated = true,
+                    currentUser = loggedInUser
+                )
+            }
+        }
+    }
+    
     fun updateFullName(value: String) { _uiState.value = _uiState.value.copy(fullName = value) }
     fun updateDateOfBirth(value: String) { _uiState.value = _uiState.value.copy(dateOfBirth = value) }
     fun updatePhoneNumber(value: String) { _uiState.value = _uiState.value.copy(phoneNumber = value) }
@@ -53,7 +66,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             try {
-                // Validation
                 if (fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() || password.isBlank()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -97,6 +109,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 
                 userDao.insertUser(user)
                 
+                // Connect student to mentor
                 if (role == UserRole.STUDENT && !mentorId.isNullOrEmpty() && !mentorPhone.isNullOrEmpty()) {
                     val mentor = userDao.getUserByMentorId(mentorId)
                     if (mentor != null) {
@@ -199,6 +212,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun logout() {
+        viewModelScope.launch {
+            _uiState.value.currentUser?.let {
+                userDao.updateLoginStatus(it.id, false)
+            }
+        }
         _uiState.value = AuthUiState()
     }
     
