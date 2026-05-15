@@ -2,7 +2,6 @@ package com.pomo.data
 
 import androidx.room.*
 import com.pomo.auth.User
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
