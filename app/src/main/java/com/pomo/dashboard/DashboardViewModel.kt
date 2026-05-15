@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 data class DashboardUiState(
     val userFullName: String = "",
@@ -95,7 +97,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 startTime = System.currentTimeMillis(),
                 endTime = System.currentTimeMillis() + (25 * 60 * 1000),
                 durationSeconds = 25 * 60,
-                status = SessionStatus.INTERRUPTED,
+                status = SessionStatus.SKIPPED,
                 proofChecksPassed = 0,
                 proofChecksTotal = 0
             )
@@ -134,11 +136,9 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     private fun calculateStreak(sessions: List<PomodoroSession>): Int {
-        // Simple streak calculation - groups by date
         val completedDates = sessions
             .filter { it.status.name == "COMPLETED" }
-            .map { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                .format(java.util.Date(it.startTime)) }
+            .map { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.startTime)) }
             .distinct()
             .sortedDescending()
         
@@ -146,10 +146,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         for (i in completedDates.indices) {
             if (i == 0) streak = 1
             else {
-                val prevDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                    .parse(completedDates[i - 1])
-                val currDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                    .parse(completedDates[i])
+                val prevDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(completedDates[i - 1])
+                val currDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(completedDates[i])
                 val diff = ((prevDate?.time ?: 0) - (currDate?.time ?: 0)) / (24 * 60 * 60 * 1000)
                 if (diff == 1L) streak++ else break
             }
