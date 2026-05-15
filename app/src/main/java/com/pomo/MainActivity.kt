@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomo.auth.AuthScreen
+import com.pomo.auth.AuthViewModel
 import com.pomo.auth.UserRole
 import com.pomo.dashboard.MentorDashboard
 import com.pomo.dashboard.StudentDashboard
@@ -24,48 +26,42 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation() {
-    var isAuthenticated by remember { mutableStateOf(false) }
-    var currentUserRole by remember { mutableStateOf<UserRole?>(null) }
-    var currentUserId by remember { mutableStateOf<String?>(null) }
-    var showRoleSelection by remember { mutableStateOf(true) }
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.uiState.collectAsState()
     
-    if (!isAuthenticated) {
+    // Check if user is already logged in
+    LaunchedEffect(Unit) {
+        // AuthViewModel already checks for logged-in user in init
+    }
+    
+    if (!authState.isAuthenticated || authState.currentUser == null) {
         AuthScreen(
             onAuthSuccess = { user ->
-                isAuthenticated = true
-                currentUserRole = user.role
-                currentUserId = user.id
-                showRoleSelection = false
+                // Auth handled by ViewModel
             },
-            onBackToRoleSelection = {
-                showRoleSelection = true
-            }
+            onBackToRoleSelection = { },
+            viewModel = authViewModel
         )
     } else {
-        when (currentUserRole) {
+        val currentUser = authState.currentUser!!
+        
+        when (currentUser.role) {
             UserRole.STUDENT -> {
                 StudentDashboard(
-                    userId = currentUserId ?: return,
+                    userId = currentUser.id,
                     onLogout = {
-                        isAuthenticated = false
-                        currentUserRole = null
-                        currentUserId = null
-                        showRoleSelection = true
+                        authViewModel.logout()
                     }
                 )
             }
             UserRole.MENTOR -> {
                 MentorDashboard(
-                    mentorId = currentUserId ?: return,
+                    mentorId = currentUser.id,
                     onLogout = {
-                        isAuthenticated = false
-                        currentUserRole = null
-                        currentUserId = null
-                        showRoleSelection = true
+                        authViewModel.logout()
                     }
                 )
             }
-            null -> {}
         }
     }
 }
