@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlin.random.Random
 
 enum class SessionStatus {
-    COMPLETED, FAILED, SKIPPED
+    COMPLETED, FAILED, SKIPPED, INTERRUPTED
 }
 
 class PomodoroEngine(private val application: Application) : ViewModel() {
@@ -141,6 +141,7 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
     }
     
     private fun saveSession(status: SessionStatus) {
+        // Save to database - implementation can be added here
     }
     
     fun resetTimer() {
