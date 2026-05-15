@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/MainActivity.kt
 package com.pomo
 
 import android.os.Bundle
@@ -17,17 +16,18 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             KoriTheme {
-                KoriPomodoroApp()
+                AppNavigation()
             }
         }
     }
 }
 
 @Composable
-fun KoriPomodoroApp() {
+fun AppNavigation() {
     var isAuthenticated by remember { mutableStateOf(false) }
     var currentUserRole by remember { mutableStateOf<UserRole?>(null) }
     var currentUserId by remember { mutableStateOf<String?>(null) }
+    var showRoleSelection by remember { mutableStateOf(true) }
     
     if (!isAuthenticated) {
         AuthScreen(
@@ -35,6 +35,10 @@ fun KoriPomodoroApp() {
                 isAuthenticated = true
                 currentUserRole = user.role
                 currentUserId = user.id
+                showRoleSelection = false
+            },
+            onBackToRoleSelection = {
+                showRoleSelection = true
             }
         )
     } else {
@@ -46,6 +50,7 @@ fun KoriPomodoroApp() {
                         isAuthenticated = false
                         currentUserRole = null
                         currentUserId = null
+                        showRoleSelection = true
                     }
                 )
             }
@@ -56,6 +61,7 @@ fun KoriPomodoroApp() {
                         isAuthenticated = false
                         currentUserRole = null
                         currentUserId = null
+                        showRoleSelection = true
                     }
                 )
             }
