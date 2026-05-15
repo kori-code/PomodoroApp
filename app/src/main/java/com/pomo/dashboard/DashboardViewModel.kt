@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.pomo.auth.PomodoroSession
 import com.pomo.data.AppDatabase
 import com.pomo.pomodoro.PomodoroEngine
-import com.pomo.pomodoro.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,7 +63,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             if (user != null) {
                 currentUserRole = user.role.name
                 val sessions = sessionDao.getUserSessions(userId)
-                val completed = sessions.count { it.status.name == "COMPLETED" }
+                val completed = sessions.count { it.status == "COMPLETED" }
                 val total = sessions.size
                 val score = if (total > 0) (completed * 100) / total else 0
                 val streak = calculateStreak(sessions)
@@ -88,7 +87,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun startSession(taskName: String) {
         pomodoroEngine.startSession(taskName)
         
-        // Save session start to database
         viewModelScope.launch {
             val session = PomodoroSession(
                 userId = currentUserId,
@@ -97,7 +95,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 startTime = System.currentTimeMillis(),
                 endTime = System.currentTimeMillis() + (25 * 60 * 1000),
                 durationSeconds = 25 * 60,
-                status = SessionStatus.SKIPPED,
+                status = "STARTED",
                 proofChecksPassed = 0,
                 proofChecksTotal = 0
             )
@@ -137,7 +135,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     private fun calculateStreak(sessions: List<PomodoroSession>): Int {
         val completedDates = sessions
-            .filter { it.status.name == "COMPLETED" }
+            .filter { it.status == "COMPLETED" }
             .map { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it.startTime)) }
             .distinct()
             .sortedDescending()
