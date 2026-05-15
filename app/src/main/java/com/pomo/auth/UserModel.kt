@@ -47,11 +47,7 @@ data class PomodoroSession(
     val startTime: Long,
     val endTime: Long,
     val durationSeconds: Int,
-    val status: SessionStatus,
+    val status: String,  // Changed from SessionStatus to String
     val proofChecksPassed: Int,
     val proofChecksTotal: Int
 )
-
-enum class SessionStatus {
-    COMPLETED, FAILED, SKIPPED, INTERRUPTED
-}
