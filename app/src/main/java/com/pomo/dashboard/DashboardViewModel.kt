@@ -42,13 +42,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun initializePomodoro() {
         viewModelScope.launch {
             pomodoroEngine.uiState.collect { engineState ->
-                _uiState.update { current ->
-                    current.copy(
-                        timerState = engineState.state,
-                        secondsRemaining = engineState.secondsRemaining,
-                        currentTask = engineState.currentTask
-                    )
-                }
+                _uiState.value = _uiState.value.copy(
+                    timerState = engineState.state,
+                    secondsRemaining = engineState.secondsRemaining,
+                    currentTask = engineState.currentTask
+                )
             }
         }
     }
@@ -61,7 +59,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val user = userDao.getUserById(userId)
             if (user != null) {
                 val sessions = sessionDao.getUserSessions(userId)
-                val completed = sessions.count { it.status == SessionStatus.COMPLETED }
+                val completed = sessions.count { it.status.name == "COMPLETED" }
                 val total = sessions.size
                 val score = if (total > 0) (completed * 100) / total else 0
                 val streak = calculateStreak(sessions)
