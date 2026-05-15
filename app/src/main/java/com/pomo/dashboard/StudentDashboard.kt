@@ -1,6 +1,5 @@
 package com.pomo.dashboard
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +32,7 @@ fun StudentDashboard(
     val uiState by viewModel.uiState.collectAsState()
     var showTaskDialog by remember { mutableStateOf(false) }
     var showProofDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     var currentChallenge by remember { mutableStateOf<PomodoroEngine.ProofChallenge?>(null) }
     var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -123,8 +123,7 @@ fun StudentDashboard(
                         onClick = {
                             scope.launch {
                                 drawerState.close()
-                                viewModel.logout()
-                                onLogout()
+                                showLogoutDialog = true
                             }
                         }
                     )
@@ -429,6 +428,30 @@ fun StudentDashboard(
             onWrong = {
                 showProofDialog = false
                 viewModel.failSession("Proof challenge failed")
+            }
+        )
+    }
+    
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout") },
+            text = { Text("Are you sure you want to logout?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.logout()
+                        onLogout()
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("No")
+                }
             }
         )
     }
