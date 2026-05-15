@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/pomodoro/PomodoroEngine.kt
 package com.pomo.pomodoro
 
 import android.app.Application
@@ -11,6 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlin.random.Random
 
+enum class SessionStatus {
+    COMPLETED, FAILED, SKIPPED
+}
+
 class PomodoroEngine(private val application: Application) : ViewModel() {
     
     enum class TimerState { IDLE, RUNNING, PAUSED, COMPLETED, FAILED }
@@ -21,7 +24,7 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
         val attemptsLeft: Int = 3
     )
     
-    data class TimerState(
+    data class TimerStateData(
         val state: TimerState = TimerState.IDLE,
         val secondsRemaining: Int = 25 * 60,
         val currentTask: String = "",
@@ -30,20 +33,20 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
         val proofChecksTotal: Int = 0
     )
     
-    private val _uiState = MutableStateFlow(TimerState())
-    val uiState: StateFlow<TimerState> = _uiState
+    private val _uiState = MutableStateFlow(TimerStateData())
+    val uiState: StateFlow<TimerStateData> = _uiState
     
     private val _proofChallenge = MutableSharedFlow<ProofChallenge>()
     val onProofChallenge = _proofChallenge.asSharedFlow()
     
     private var timerJob: Job? = null
-    private var proofCheckJob: Job? = null
     private var lastProofCheckSecond = 0
+    private var currentChallengeAnswer: Int = 0
     
     fun startSession(taskName: String) {
         if (_uiState.value.state != TimerState.IDLE) return
         
-        _uiState.value = TimerState(
+        _uiState.value = TimerStateData(
             state = TimerState.RUNNING,
             secondsRemaining = 25 * 60,
             currentTask = taskName,
@@ -69,13 +72,11 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
                 }
                 
                 val elapsed = totalSeconds - i
-                // Trigger proof check every 5 minutes (300 seconds)
                 if (elapsed > 0 && elapsed % 300 == 0 && elapsed != lastProofCheckSecond) {
                     lastProofCheckSecond = elapsed
                     triggerProofCheck()
                     
-                    // Wait for proof check completion (max 30 seconds)
-                    delay(30_000L)
+                    delay(30000L)
                     if (_uiState.value.state == TimerState.PAUSED) {
                         failSession("Proof challenge timeout")
                         return@launch
@@ -93,6 +94,7 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
     
     private suspend fun triggerProofCheck() {
         val challenge = generateProofChallenge()
+        currentChallengeAnswer = challenge.answer
         _proofChallenge.emit(challenge)
         _uiState.value = _uiState.value.copy(
             state = TimerState.PAUSED,
@@ -104,15 +106,11 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
         val currentState = _uiState.value
         if (currentState.state != TimerState.PAUSED) return
         
-        // Get the current challenge (simplified - store in state)
-        // For production, store current challenge in state
-        if (answer == 42) { // Placeholder - store actual answer
+        if (answer == currentChallengeAnswer) {
             _uiState.value = currentState.copy(
                 state = TimerState.RUNNING,
                 proofChecksPassed = currentState.proofChecksPassed + 1
             )
-        } else {
-            // Wrong answer - will be handled by the dialog
         }
     }
     
@@ -133,7 +131,6 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
     fun failSession(reason: String) {
         timerJob?.cancel()
         _uiState.value = _uiState.value.copy(state = TimerState.FAILED)
-        // Save to database and notify mentor
         saveSession(SessionStatus.FAILED)
     }
     
@@ -144,13 +141,11 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
     }
     
     private fun saveSession(status: SessionStatus) {
-        // Save to Room database
-        // Sync with mentor via webhook/SMS/Email
     }
     
     fun resetTimer() {
         timerJob?.cancel()
-        _uiState.value = TimerState()
+        _uiState.value = TimerStateData()
     }
     
     private fun generateProofChallenge(): ProofChallenge {
@@ -182,8 +177,4 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
             }
         }
     }
-}
-
-enum class SessionStatus {
-    COMPLETED, FAILED, SKIPPED
 }
