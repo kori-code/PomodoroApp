@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +28,7 @@ fun MentorDashboard(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
     LaunchedEffect(mentorId) {
@@ -121,7 +121,7 @@ fun MentorDashboard(
                         onClick = {
                             scope.launch {
                                 drawerState.close()
-                                onLogout()
+                                showLogoutDialog = true
                             }
                         }
                     )
@@ -247,6 +247,29 @@ fun MentorDashboard(
                 }
             }
         }
+    }
+    
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout") },
+            text = { Text("Are you sure you want to logout?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
     }
 }
 
