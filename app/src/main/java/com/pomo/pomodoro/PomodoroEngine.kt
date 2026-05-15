@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlin.random.Random
 
+// Single definition of SessionStatus - only here
 enum class SessionStatus {
     COMPLETED, FAILED, SKIPPED, INTERRUPTED
 }
@@ -141,7 +142,7 @@ class PomodoroEngine(private val application: Application) : ViewModel() {
     }
     
     private fun saveSession(status: SessionStatus) {
-        // Save to database - implementation can be added here
+        // Session saved by ViewModel
     }
     
     fun resetTimer() {
