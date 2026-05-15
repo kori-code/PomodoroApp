@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/pomodoro/TaskInputDialog.kt
 package com.pomo.pomodoro
 
 import androidx.compose.foundation.layout.*
@@ -59,7 +58,7 @@ fun TaskInputDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "🎯 What are you working on?",
+                    "What are you working on?",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
