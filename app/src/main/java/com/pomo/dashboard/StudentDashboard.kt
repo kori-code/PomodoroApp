@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomo.pomodoro.PomodoroEngine
 import com.pomo.pomodoro.ProofChallengeDialog
 import com.pomo.pomodoro.TaskInputDialog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,8 +34,12 @@ fun StudentDashboard(
     var showTaskDialog by remember { mutableStateOf(false) }
     var showProofDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var currentChallenge by remember { mutableStateOf<PomodoroEngine.ProofChallenge?>(null) }
     var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var editedName by remember { mutableStateOf(uiState.userFullName) }
+    var editedPhone by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     
     LaunchedEffect(userId) {
@@ -97,21 +102,37 @@ fun StudentDashboard(
                         icon = { Icon(Icons.Default.Edit, null) },
                         label = { Text("Edit Profile") },
                         selected = false,
-                        onClick = { }
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                editedName = uiState.userFullName
+                                showEditProfileDialog = true
+                            }
+                        }
                     )
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.History, null) },
                         label = { Text("Session History") },
                         selected = false,
-                        onClick = { }
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                // Show session history
+                            }
+                        }
                     )
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Settings, null) },
                         label = { Text("Settings") },
                         selected = false,
-                        onClick = { }
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                showSettingsDialog = true
+                            }
+                        }
                     )
                     
                     Spacer(modifier = Modifier.weight(1f))
@@ -455,6 +476,79 @@ fun StudentDashboard(
             }
         )
     }
+    
+    if (showEditProfileDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditProfileDialog = false },
+            title = { Text("Edit Profile") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Full Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = uiState.userEmail,
+                        onValueChange = {},
+                        label = { Text("Email (cannot be changed)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        enabled = false
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEditProfileDialog = false
+                        // Update profile logic would go here
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditProfileDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = { Text("Settings") },
+            text = {
+                Column {
+                    Text("📱 App Version: 2.0.0", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("👨‍💻 Developer: Kori Team")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("🎯 Features:")
+                    Text("  • 25-min Pomodoro Timer")
+                    Text("  • Proof of Focus Challenges")
+                    Text("  • Mentor/Student Sync")
+                    Text("  • Session History Tracking")
+                    Text("  • Streak Counter")
+                    Text("  • Level System")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("📊 Statistics: ${uiState.totalCompleted} sessions completed")
+                    Text("🔥 ${uiState.streakDays} day streak")
+                    Text("🏆 Level: ${uiState.level}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -533,10 +627,10 @@ fun TimerDisplay(secondsRemaining: Int, timerState: PomodoroEngine.TimerState) {
                 Text(
                     when (timerState) {
                         PomodoroEngine.TimerState.IDLE -> "Ready to focus"
-                        PomodoroEngine.TimerState.RUNNING -> "Focus Mode"
-                        PomodoroEngine.TimerState.PAUSED -> "Verification Required"
-                        PomodoroEngine.TimerState.COMPLETED -> "Complete!"
-                        PomodoroEngine.TimerState.FAILED -> "Failed"
+                        PomodoroEngine.TimerState.RUNNING -> "Focus Mode 🔒"
+                        PomodoroEngine.TimerState.PAUSED -> "Verification Required 🧠"
+                        PomodoroEngine.TimerState.COMPLETED -> "Complete! 🎉"
+                        PomodoroEngine.TimerState.FAILED -> "Failed ❌"
                     },
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
