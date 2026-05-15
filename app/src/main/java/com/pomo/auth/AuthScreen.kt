@@ -1,8 +1,6 @@
-// app/src/main/java/com/pomo/auth/AuthScreen.kt
 package com.pomo.auth
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,19 +11,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.pomo.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +32,6 @@ fun AuthScreen(
     
     val uiState by viewModel.uiState.collectAsState()
     
-    // Handle success
     LaunchedEffect(uiState.isAuthenticated) {
         if (uiState.isAuthenticated && uiState.currentUser != null) {
             onAuthSuccess(uiState.currentUser!!)
@@ -58,15 +50,6 @@ fun AuthScreen(
                 )
             )
     ) {
-        // Background decorative elements
-        Image(
-            painter = painterResource(id = R.drawable.auth_bg_pattern),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = 0.05f
-        )
-        
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -74,7 +57,6 @@ fun AuthScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo & Title
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(20.dp),
@@ -103,7 +85,6 @@ fun AuthScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // Role Selection Screen
             AnimatedVisibility(
                 visible = showRoleSelection,
                 enter = fadeIn() + slideInVertically(),
@@ -146,7 +127,6 @@ fun AuthScreen(
                 }
             }
             
-            // Auth Form (Sign Up / Login)
             AnimatedVisibility(
                 visible = !showRoleSelection && selectedRole != null,
                 enter = fadeIn() + slideInVertically(),
