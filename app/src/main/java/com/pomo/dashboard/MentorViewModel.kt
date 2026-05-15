@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pomo.auth.StudentConnection
 import com.pomo.data.AppDatabase
+import com.pomo.pomodoro.SessionStatus
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +32,10 @@ class MentorViewModel(application: Application) : AndroidViewModel(application) 
     private val _uiState = MutableStateFlow(MentorUiState())
     val uiState: StateFlow<MentorUiState> = _uiState.asStateFlow()
     
+    private var currentMentorId: String = ""
+    
     fun loadMentorData(mentorId: String) {
+        currentMentorId = mentorId
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
@@ -50,33 +55,56 @@ class MentorViewModel(application: Application) : AndroidViewModel(application) 
     
     fun loadConnectedStudents(mentorId: String) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
             val students = studentDao.getStudentsByMentor(mentorId)
             
             var totalScore = 0
             var totalSessionsCount = 0
+            val updatedStudents = mutableListOf<StudentConnection>()
             
-            students.forEach { student ->
+            for (student in students) {
                 val sessions = sessionDao.getUserSessions(student.studentId)
                 val completed = sessions.count { it.status.name == "COMPLETED" }
-                val score = if (sessions.isNotEmpty()) (completed * 100) / sessions.size else 0
+                val total = sessions.size
+                val score = if (total > 0) (completed * 100) / total else 0
                 
                 totalScore += score
                 totalSessionsCount += completed
                 
+                // Update student stats in database
                 studentDao.updateStudentStats(student.studentId, completed, score)
+                
+                // Get updated student
+                val updatedStudent = student.copy(
+                    totalSessionsCompleted = completed,
+                    currentFocusScore = score,
+                    lastActive = System.currentTimeMillis()
+                )
+                updatedStudents.add(updatedStudent)
             }
             
-            val avgScore = if (students.isNotEmpty()) totalScore / students.size else 0
+            val avgScore = if (updatedStudents.isNotEmpty()) totalScore / updatedStudents.size else 0
             
             _uiState.value = _uiState.value.copy(
-                students = students,
-                totalStudents = students.size,
+                students = updatedStudents,
+                totalStudents = updatedStudents.size,
                 averageFocusScore = avgScore,
-                totalSessions = totalSessionsCount
+                totalSessions = totalSessionsCount,
+                isLoading = false
             )
         }
     }
     
+    fun refreshData() {
+        if (currentMentorId.isNotBlank()) {
+            loadConnectedStudents(currentMentorId)
+        }
+    }
+    
     fun logout() {
+        viewModelScope.launch {
+            userDao.updateLoginStatus(currentMentorId, false)
+        }
     }
 }
