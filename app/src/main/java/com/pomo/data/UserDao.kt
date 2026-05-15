@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/data/UserDao.kt
 package com.pomo.data
 
 import androidx.room.*
@@ -16,6 +15,9 @@ interface UserDao {
     
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: String): User?
+    
+    @Query("SELECT * FROM users WHERE isLoggedIn = 1 LIMIT 1")
+    suspend fun getLoggedInUser(): User?
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User): Long
