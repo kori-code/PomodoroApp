@@ -1,3 +1,6 @@
+// At the top of MentorViewModel.kt
+import com.pomo.data.AppDatabase
+import com.pomo.pomodoro.SessionStatus
 // app/src/main/java/com/pomo/dashboard/MentorViewModel.kt
 package com.pomo.dashboard
 
