@@ -47,7 +47,7 @@ data class PomodoroSession(
     val startTime: Long,
     val endTime: Long,
     val durationSeconds: Int,
-    val status: String,  // Changed from SessionStatus to String
+    val status: String,
     val proofChecksPassed: Int,
     val proofChecksTotal: Int
 )
