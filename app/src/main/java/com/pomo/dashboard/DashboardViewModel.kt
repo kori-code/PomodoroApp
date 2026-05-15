@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pomo.auth.PomodoroSession
+import com.pomo.auth.StudentConnection
+import com.pomo.auth.User
 import com.pomo.data.AppDatabase
 import com.pomo.pomodoro.PomodoroEngine
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +18,9 @@ import java.util.*
 data class DashboardUiState(
     val userFullName: String = "",
     val userEmail: String = "",
+    val userPhone: String = "",
+    val userRole: String = "",
+    val mentorId: String = "",
     val timerState: PomodoroEngine.TimerState = PomodoroEngine.TimerState.IDLE,
     val secondsRemaining: Int = 25 * 60,
     val currentTask: String = "",
@@ -23,7 +28,8 @@ data class DashboardUiState(
     val totalCompleted: Int = 0,
     val streakDays: Int = 0,
     val level: String = "Beginner",
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val currentSessionId: Long = 0
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,7 +46,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     val proofChallengeFlow = pomodoroEngine.onProofChallenge
     
     private var currentUserId: String = ""
-    private var currentUserRole: String = ""
+    private var currentUser: User? = null
+    private var currentSessionId: Long = 0
     
     fun initializePomodoro() {
         viewModelScope.launch {
@@ -50,6 +57,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     secondsRemaining = engineState.secondsRemaining,
                     currentTask = engineState.currentTask
                 )
+                
+                // Update session end time when completed or failed
+                if (engineState.state == PomodoroEngine.TimerState.COMPLETED && _uiState.value.currentSessionId != 0L) {
+                    updateSessionStatus("COMPLETED", engineState.proofChecksPassed, engineState.proofChecksTotal)
+                } else if (engineState.state == PomodoroEngine.TimerState.FAILED && _uiState.value.currentSessionId != 0L) {
+                    updateSessionStatus("FAILED", engineState.proofChecksPassed, engineState.proofChecksTotal)
+                }
             }
         }
     }
@@ -59,9 +73,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
-            val user = userDao.getUserById(userId)
-            if (user != null) {
-                currentUserRole = user.role.name
+            currentUser = userDao.getUserById(userId)
+            if (currentUser != null) {
                 val sessions = sessionDao.getUserSessions(userId)
                 val completed = sessions.count { it.status == "COMPLETED" }
                 val total = sessions.size
@@ -70,8 +83,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 val level = getLevel(completed)
                 
                 _uiState.value = _uiState.value.copy(
-                    userFullName = user.fullName,
-                    userEmail = user.email,
+                    userFullName = currentUser!!.fullName,
+                    userEmail = currentUser!!.email,
+                    userPhone = currentUser!!.phoneNumber,
+                    userRole = currentUser!!.role.name,
+                    mentorId = currentUser!!.mentorId ?: "",
                     focusScore = score,
                     totalCompleted = completed,
                     streakDays = streak,
@@ -90,7 +106,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             val session = PomodoroSession(
                 userId = currentUserId,
-                studentId = if (currentUserRole == "STUDENT") currentUserId else null,
+                studentId = if (_uiState.value.userRole == "STUDENT") currentUserId else null,
                 taskName = taskName,
                 startTime = System.currentTimeMillis(),
                 endTime = System.currentTimeMillis() + (25 * 60 * 1000),
@@ -99,7 +115,37 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 proofChecksPassed = 0,
                 proofChecksTotal = 0
             )
-            sessionDao.insertSession(session)
+            currentSessionId = sessionDao.insertSession(session)
+            _uiState.value = _uiState.value.copy(currentSessionId = currentSessionId)
+        }
+    }
+    
+    private fun updateSessionStatus(status: String, proofPassed: Int, proofTotal: Int) {
+        viewModelScope.launch {
+            if (_uiState.value.currentSessionId != 0L) {
+                // Update the session with final status
+                val session = PomodoroSession(
+                    id = _uiState.value.currentSessionId,
+                    userId = currentUserId,
+                    studentId = if (_uiState.value.userRole == "STUDENT") currentUserId else null,
+                    taskName = _uiState.value.currentTask,
+                    startTime = System.currentTimeMillis() - (25 * 60 * 1000),
+                    endTime = System.currentTimeMillis(),
+                    durationSeconds = 25 * 60,
+                    status = status,
+                    proofChecksPassed = proofPassed,
+                    proofChecksTotal = proofTotal
+                )
+                sessionDao.insertSession(session)
+                
+                // Refresh user data to update stats
+                loadUserData(currentUserId)
+                
+                // If student, notify mentor via refresh
+                if (_uiState.value.userRole == "STUDENT" && currentUser?.connectedMentorId != null) {
+                    // The mentor dashboard will auto-refresh and pick up this session
+                }
+            }
         }
     }
     
@@ -121,6 +167,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     fun resetTimer() {
         pomodoroEngine.resetTimer()
+        _uiState.value = _uiState.value.copy(currentSessionId = 0)
     }
     
     fun logout() {
