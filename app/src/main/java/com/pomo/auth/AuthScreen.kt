@@ -1,21 +1,22 @@
 package com.pomo.auth
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,11 +25,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun AuthScreen(
     onAuthSuccess: (User) -> Unit,
+    onBackToRoleSelection: (() -> Unit)? = null,
     viewModel: AuthViewModel = viewModel()
 ) {
     var isLoginMode by remember { mutableStateOf(true) }
     var selectedRole by remember { mutableStateOf<UserRole?>(null) }
     var showRoleSelection by remember { mutableStateOf(true) }
+    var passwordVisible by remember { mutableStateOf(false) }
     
     val uiState by viewModel.uiState.collectAsState()
     
@@ -53,10 +56,27 @@ fun AuthScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Back button when not in role selection
+            if (!showRoleSelection && onBackToRoleSelection != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    IconButton(onClick = { 
+                        showRoleSelection = true
+                        selectedRole = null
+                        isLoginMode = true
+                        onBackToRoleSelection()
+                    }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            }
+            
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(20.dp),
@@ -85,11 +105,8 @@ fun AuthScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            AnimatedVisibility(
-                visible = showRoleSelection,
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically()
-            ) {
+            // Role Selection Screen
+            if (showRoleSelection) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
@@ -125,13 +142,8 @@ fun AuthScreen(
                         }
                     )
                 }
-            }
-            
-            AnimatedVisibility(
-                visible = !showRoleSelection && selectedRole != null,
-                enter = fadeIn() + slideInVertically(),
-                exit = fadeOut() + slideOutVertically()
-            ) {
+            } else {
+                // Auth Form
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -167,11 +179,7 @@ fun AuthScreen(
                                 label = { Text("Full Name") },
                                 leadingIcon = { Icon(Icons.Default.Person, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                                )
+                                singleLine = true
                             )
                             
                             Spacer(modifier = Modifier.height(12.dp))
@@ -182,7 +190,8 @@ fun AuthScreen(
                                 label = { Text("Date of Birth (YYYY-MM-DD)") },
                                 leadingIcon = { Icon(Icons.Default.Cake, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+                                singleLine = true,
+                                placeholder = { Text("1990-01-01") }
                             )
                         }
                         
@@ -210,7 +219,29 @@ fun AuthScreen(
                         
                         Spacer(modifier = Modifier.height(12.dp))
                         
+                        // Password Field
+                        OutlinedTextField(
+                            value = uiState.password,
+                            onValueChange = { viewModel.updatePassword(it) },
+                            label = { Text("Password") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null) },
+                            trailingIcon = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Icon(
+                                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                        )
+                        
                         if (!isLoginMode && selectedRole == UserRole.STUDENT) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
                             OutlinedTextField(
                                 value = uiState.mentorId,
                                 onValueChange = { viewModel.updateMentorId(it) },
@@ -229,7 +260,8 @@ fun AuthScreen(
                                 label = { Text("Mentor's Phone Number (verification)") },
                                 leadingIcon = { Icon(Icons.Default.Verified, null) },
                                 modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+                                singleLine = true,
+                                placeholder = { Text("Enter mentor's phone number") }
                             )
                         }
                         
@@ -241,6 +273,7 @@ fun AuthScreen(
                                     viewModel.login(
                                         email = uiState.email,
                                         phoneNumber = uiState.phoneNumber,
+                                        password = uiState.password,
                                         role = selectedRole!!
                                     )
                                 } else {
@@ -250,6 +283,7 @@ fun AuthScreen(
                                         dateOfBirth = uiState.dateOfBirth,
                                         phoneNumber = uiState.phoneNumber,
                                         email = uiState.email,
+                                        password = uiState.password,
                                         mentorId = uiState.mentorId,
                                         mentorPhone = uiState.mentorPhone
                                     )
