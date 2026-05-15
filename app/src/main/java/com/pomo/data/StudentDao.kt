@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/data/StudentDao.kt
 package com.pomo.data
 
 import androidx.room.*
@@ -15,4 +14,7 @@ interface StudentDao {
     
     @Query("UPDATE student_connections SET totalSessionsCompleted = :completed, currentFocusScore = :score WHERE studentId = :studentId")
     suspend fun updateStudentStats(studentId: String, completed: Int, score: Int)
+    
+    @Query("DELETE FROM student_connections WHERE studentId = :studentId")
+    suspend fun deleteConnection(studentId: String)
 }
