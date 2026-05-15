@@ -18,6 +18,7 @@ data class AuthUiState(
     val dateOfBirth: String = "",
     val phoneNumber: String = "",
     val email: String = "",
+    val password: String = "",
     val mentorId: String = "",
     val mentorPhone: String = ""
 )
@@ -34,6 +35,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     fun updateDateOfBirth(value: String) { _uiState.value = _uiState.value.copy(dateOfBirth = value) }
     fun updatePhoneNumber(value: String) { _uiState.value = _uiState.value.copy(phoneNumber = value) }
     fun updateEmail(value: String) { _uiState.value = _uiState.value.copy(email = value) }
+    fun updatePassword(value: String) { _uiState.value = _uiState.value.copy(password = value) }
     fun updateMentorId(value: String) { _uiState.value = _uiState.value.copy(mentorId = value) }
     fun updateMentorPhone(value: String) { _uiState.value = _uiState.value.copy(mentorPhone = value) }
     
@@ -43,6 +45,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         dateOfBirth: String,
         phoneNumber: String,
         email: String,
+        password: String,
         mentorId: String?,
         mentorPhone: String?
     ) {
@@ -50,6 +53,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             try {
+                // Validation
+                if (fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() || password.isBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Please fill all required fields"
+                    )
+                    return@launch
+                }
+                
+                if (password.length < 4) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Password must be at least 4 characters"
+                    )
+                    return@launch
+                }
+                
                 val generatedMentorId = if (role == UserRole.MENTOR) {
                     generateMentorId()
                 } else null
@@ -60,6 +80,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     dateOfBirth = dateOfBirth,
                     phoneNumber = phoneNumber,
                     email = email,
+                    password = password,
                     mentorId = generatedMentorId,
                     connectedMentorId = if (role == UserRole.STUDENT) mentorId else null,
                     isLoggedIn = true
@@ -114,17 +135,33 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun login(email: String, phoneNumber: String, role: UserRole) {
+    fun login(email: String, phoneNumber: String, password: String, role: UserRole) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             try {
+                if (email.isBlank() || password.isBlank()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Please enter email and password"
+                    )
+                    return@launch
+                }
+                
                 val user = userDao.getUserByEmail(email)
                 
                 if (user == null) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "User not found. Please sign up first."
+                    )
+                    return@launch
+                }
+                
+                if (user.password != password) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Invalid password"
                     )
                     return@launch
                 }
@@ -159,6 +196,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
+    }
+    
+    fun logout() {
+        _uiState.value = AuthUiState()
     }
     
     private fun generateMentorId(): String {
