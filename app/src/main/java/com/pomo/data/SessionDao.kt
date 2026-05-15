@@ -7,7 +7,7 @@ import com.pomo.auth.PomodoroSession
 interface SessionDao {
     
     @Insert
-    suspend fun insertSession(session: PomodoroSession)
+    suspend fun insertSession(session: PomodoroSession): Long
     
     @Query("SELECT * FROM pomodoro_sessions WHERE userId = :userId ORDER BY startTime DESC")
     suspend fun getUserSessions(userId: String): List<PomodoroSession>
