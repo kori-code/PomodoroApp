@@ -400,7 +400,7 @@ fun StudentDashboard(
                                     ) {
                                         Text("Try Again")
                                     }
-                                )
+                                }
                             }
                         }
                     }
