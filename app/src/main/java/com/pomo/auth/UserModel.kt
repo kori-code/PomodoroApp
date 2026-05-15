@@ -13,7 +13,7 @@ data class User(
     val dateOfBirth: String,
     val phoneNumber: String,
     val email: String,
-    val password: String,  // NEW: Add password field
+    val password: String,
     val mentorId: String? = null,
     val connectedMentorId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
