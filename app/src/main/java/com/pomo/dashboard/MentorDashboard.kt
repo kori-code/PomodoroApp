@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/dashboard/MentorDashboard.kt
 package com.pomo.dashboard
 
 import androidx.compose.foundation.background
@@ -19,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomo.auth.StudentConnection
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +41,7 @@ fun MentorDashboard(
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = MaterialTheme.colorScheme.surface,
-                drawerShape = RoundedCornerShape(end = 20.dp)
+                drawerShape = RoundedCornerShape(20.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -54,10 +54,7 @@ fun MentorDashboard(
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                "👨‍🏫",
-                                fontSize = 48.sp
-                            )
+                            Text("👨‍🏫", fontSize = 48.sp)
                         }
                     }
                     
@@ -112,7 +109,7 @@ fun MentorDashboard(
                         icon = { Icon(Icons.Default.Settings, null) },
                         label = { Text("Settings") },
                         selected = false,
-                        onClick = { /* Settings */ }
+                        onClick = { }
                     )
                     
                     Spacer(modifier = Modifier.weight(1f))
@@ -122,9 +119,10 @@ fun MentorDashboard(
                         label = { Text("Logout") },
                         selected = false,
                         onClick = {
-                            scope.launch { drawerState.close() }
-                            viewModel.logout()
-                            onLogout()
+                            scope.launch {
+                                drawerState.close()
+                                onLogout()
+                            }
                         }
                     )
                 }
@@ -143,7 +141,11 @@ fun MentorDashboard(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                drawerState.open()
+                            }
+                        }) {
                             Icon(Icons.Default.Menu, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     },
@@ -172,7 +174,6 @@ fun MentorDashboard(
                         .fillMaxSize()
                         .padding(20.dp)
                 ) {
-                    // Stats Overview
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -199,7 +200,6 @@ fun MentorDashboard(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Students List
                     Text(
                         "Your Students",
                         fontSize = 18.sp,
@@ -354,7 +354,6 @@ fun StudentCard(student: StudentConnection) {
                 }
             }
             
-            // Focus Score Circular Indicator
             Surface(
                 modifier = Modifier.size(50.dp),
                 shape = RoundedCornerShape(25.dp),
