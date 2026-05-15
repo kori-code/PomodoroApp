@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pomo.auth.StudentConnection
 import com.pomo.data.AppDatabase
-import com.pomo.pomodoro.SessionStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,17 +64,15 @@ class MentorViewModel(application: Application) : AndroidViewModel(application) 
             
             for (student in students) {
                 val sessions = sessionDao.getUserSessions(student.studentId)
-                val completed = sessions.count { it.status.name == "COMPLETED" }
+                val completed = sessions.count { it.status == "COMPLETED" }
                 val total = sessions.size
                 val score = if (total > 0) (completed * 100) / total else 0
                 
                 totalScore += score
                 totalSessionsCount += completed
                 
-                // Update student stats in database
                 studentDao.updateStudentStats(student.studentId, completed, score)
                 
-                // Get updated student
                 val updatedStudent = student.copy(
                     totalSessionsCompleted = completed,
                     currentFocusScore = score,
