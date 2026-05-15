@@ -1,17 +1,15 @@
-// At the top of DashboardViewModel.kt
-import com.pomo.data.AppDatabase
-import com.pomo.pomodoro.SessionStatus
-// app/src/main/java/com/pomo/dashboard/DashboardViewModel.kt
 package com.pomo.dashboard
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.pomo.auth.User
+import com.pomo.auth.PomodoroSession
 import com.pomo.data.AppDatabase
 import com.pomo.pomodoro.PomodoroEngine
 import com.pomo.pomodoro.SessionStatus
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class DashboardUiState(
@@ -86,9 +84,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     fun startSession(taskName: String) {
         pomodoroEngine.startSession(taskName)
-        viewModelScope.launch {
-            // Save session start to database
-        }
     }
     
     fun pauseTimer() {
@@ -117,18 +112,17 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
     
-    private fun calculateStreak(sessions: List<com.pomo.auth.PomodoroSession>): Int {
-        // Group by date and calculate streak
-        return 0 // Simplified for now
+    private fun calculateStreak(sessions: List<PomodoroSession>): Int {
+        return 0
     }
     
     private fun getLevel(completed: Int): String = when {
-        completed >= 500 -> "💎 Diamond"
-        completed >= 200 -> "🏆 Platinum"
-        completed >= 100 -> "🥇 Gold"
-        completed >= 50 -> "🥈 Silver"
-        completed >= 20 -> "🥉 Bronze"
-        completed >= 5 -> "⭐ Rookie"
-        else -> "🌱 Beginner"
+        completed >= 500 -> "Diamond"
+        completed >= 200 -> "Platinum"
+        completed >= 100 -> "Gold"
+        completed >= 50 -> "Silver"
+        completed >= 20 -> "Bronze"
+        completed >= 5 -> "Rookie"
+        else -> "Beginner"
     }
 }
