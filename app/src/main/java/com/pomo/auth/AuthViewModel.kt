@@ -1,3 +1,5 @@
+// At the top of AuthViewModel.kt
+import com.pomo.data.AppDatabase  // Make sure this import is correct
 // app/src/main/java/com/pomo/auth/AuthViewModel.kt
 package com.pomo.auth
 
