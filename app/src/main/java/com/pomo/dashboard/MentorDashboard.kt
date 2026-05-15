@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomo.auth.StudentConnection
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,11 +30,19 @@ fun MentorDashboard(
     val uiState by viewModel.uiState.collectAsState()
     var drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showRefreshDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     
     LaunchedEffect(mentorId) {
         viewModel.loadMentorData(mentorId)
         viewModel.loadConnectedStudents(mentorId)
+        
+        // Auto-refresh every 30 seconds to show updated student data
+        while(true) {
+            delay(30000)
+            viewModel.refreshData()
+        }
     }
     
     ModalNavigationDrawer(
@@ -106,10 +115,28 @@ fun MentorDashboard(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                     
                     NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Refresh, null) },
+                        label = { Text("Refresh Data") },
+                        selected = false,
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                showRefreshDialog = true
+                                viewModel.refreshData()
+                            }
+                        }
+                    )
+                    
+                    NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Settings, null) },
                         label = { Text("Settings") },
                         selected = false,
-                        onClick = { }
+                        onClick = {
+                            scope.launch {
+                                drawerState.close()
+                                showSettingsDialog = true
+                            }
+                        }
                     )
                     
                     Spacer(modifier = Modifier.weight(1f))
@@ -152,7 +179,14 @@ fun MentorDashboard(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    ),
+                    actions = {
+                        IconButton(onClick = {
+                            viewModel.refreshData()
+                        }) {
+                            Icon(Icons.Default.Refresh, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
                 )
             }
         ) { padding ->
@@ -174,6 +208,7 @@ fun MentorDashboard(
                         .fillMaxSize()
                         .padding(20.dp)
                 ) {
+                    // Stats Overview
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -200,12 +235,26 @@ fun MentorDashboard(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    Text(
-                        "Your Students",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    // Students List Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Your Students",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
                     
                     Spacer(modifier = Modifier.height(12.dp))
                     
@@ -232,6 +281,13 @@ fun MentorDashboard(
                                     "Share your Mentor ID with students to get started",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    "Your Mentor ID: ${uiState.mentorId}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp)
                                 )
                             }
                         }
@@ -267,6 +323,50 @@ fun MentorDashboard(
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
                     Text("No")
+                }
+            }
+        )
+    }
+    
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = { Text("Settings") },
+            text = {
+                Column {
+                    Text("📱 Mentor Dashboard v2.0.0", fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("🆔 Your Mentor ID: ${uiState.mentorId}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("👥 Total Students: ${uiState.totalStudents}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("📊 Total Sessions: ${uiState.totalSessions}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("🔄 Auto-refresh every 30 seconds")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("💡 Features:")
+                    Text("  • Real-time student monitoring")
+                    Text("  • Focus score tracking")
+                    Text("  • Session history")
+                    Text("  • Student progress reports")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+    
+    if (showRefreshDialog) {
+        AlertDialog(
+            onDismissRequest = { showRefreshDialog = false },
+            title = { Text("Refresh") },
+            text = { Text("Student data has been refreshed!") },
+            confirmButton = {
+                TextButton(onClick = { showRefreshDialog = false }) {
+                    Text("OK")
                 }
             }
         )
@@ -369,36 +469,54 @@ fun StudentCard(student: StudentConnection) {
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-                    Text(
-                        "${student.totalSessionsCompleted} sessions completed",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                    Row {
+                        Text(
+                            "📱 ${student.studentPhone}",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "✅ ${student.totalSessionsCompleted} sessions",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
             
+            // Focus Score Circular Indicator
             Surface(
                 modifier = Modifier.size(50.dp),
                 shape = RoundedCornerShape(25.dp),
-                color = if (student.currentFocusScore >= 70) 
-                    MaterialTheme.colorScheme.tertiaryContainer 
-                else if (student.currentFocusScore >= 40) 
-                    MaterialTheme.colorScheme.secondaryContainer 
-                else 
-                    MaterialTheme.colorScheme.errorContainer
+                color = when {
+                    student.currentFocusScore >= 70 -> MaterialTheme.colorScheme.tertiaryContainer
+                    student.currentFocusScore >= 40 -> MaterialTheme.colorScheme.secondaryContainer
+                    else -> MaterialTheme.colorScheme.errorContainer
+                }
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "${student.currentFocusScore}%",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (student.currentFocusScore >= 70) 
-                            MaterialTheme.colorScheme.onTertiaryContainer 
-                        else if (student.currentFocusScore >= 40) 
-                            MaterialTheme.colorScheme.onSecondaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "${student.currentFocusScore}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                student.currentFocusScore >= 70 -> MaterialTheme.colorScheme.onTertiaryContainer
+                                student.currentFocusScore >= 40 -> MaterialTheme.colorScheme.onSecondaryContainer
+                                else -> MaterialTheme.colorScheme.onErrorContainer
+                            }
+                        )
+                        Text(
+                            "%",
+                            fontSize = 8.sp,
+                            color = when {
+                                student.currentFocusScore >= 70 -> MaterialTheme.colorScheme.onTertiaryContainer
+                                student.currentFocusScore >= 40 -> MaterialTheme.colorScheme.onSecondaryContainer
+                                else -> MaterialTheme.colorScheme.onErrorContainer
+                            }
+                        )
+                    }
                 }
             }
         }
