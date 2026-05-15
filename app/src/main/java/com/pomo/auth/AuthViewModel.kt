@@ -32,7 +32,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<AuthUiState> = _uiState
     
     init {
-        // Check for existing logged-in user on app start
         viewModelScope.launch {
             val loggedInUser = userDao.getLoggedInUser()
             if (loggedInUser != null) {
@@ -82,6 +81,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 
+                val existingUser = userDao.getUserByEmail(email)
+                if (existingUser != null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "User with this email already exists. Please login."
+                    )
+                    return@launch
+                }
+                
                 val generatedMentorId = if (role == UserRole.MENTOR) {
                     generateMentorId()
                 } else null
@@ -98,30 +106,40 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isLoggedIn = true
                 )
                 
-                val existingUser = userDao.getUserByEmail(email)
-                if (existingUser != null) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "User with this email already exists. Please login."
-                    )
-                    return@launch
-                }
-                
                 userDao.insertUser(user)
                 
-                // Connect student to mentor
-                if (role == UserRole.STUDENT && !mentorId.isNullOrEmpty() && !mentorPhone.isNullOrEmpty()) {
+                // STUDENT: Connect to mentor
+                if (role == UserRole.STUDENT && !mentorId.isNullOrEmpty()) {
+                    // Find the mentor by mentorId
                     val mentor = userDao.getUserByMentorId(mentorId)
+                    
                     if (mentor != null) {
-                        if (mentor.phoneNumber == mentorPhone) {
-                            val connection = StudentConnection(
-                                studentId = user.id,
-                                mentorId = mentorId,
-                                studentName = fullName,
-                                studentPhone = phoneNumber,
-                                studentEmail = email
-                            )
-                            studentDao.insertConnection(connection)
+                        // Verify mentor phone if provided
+                        if (mentorPhone.isNullOrEmpty() || mentor.phoneNumber == mentorPhone) {
+                            // Check if connection already exists
+                            val existingConnections = studentDao.getStudentsByMentor(mentorId)
+                            val alreadyConnected = existingConnections.any { it.studentId == user.id }
+                            
+                            if (!alreadyConnected) {
+                                val connection = StudentConnection(
+                                    studentId = user.id,
+                                    mentorId = mentorId,
+                                    studentName = fullName,
+                                    studentPhone = phoneNumber,
+                                    studentEmail = email,
+                                    lastActive = System.currentTimeMillis(),
+                                    totalSessionsCompleted = 0,
+                                    currentFocusScore = 0
+                                )
+                                studentDao.insertConnection(connection)
+                                _uiState.value = _uiState.value.copy(
+                                    errorMessage = "Successfully connected to mentor: ${mentor.fullName}"
+                                )
+                            } else {
+                                _uiState.value = _uiState.value.copy(
+                                    errorMessage = "Already connected to this mentor"
+                                )
+                            }
                         } else {
                             _uiState.value = _uiState.value.copy(
                                 errorMessage = "Mentor phone number verification failed"
