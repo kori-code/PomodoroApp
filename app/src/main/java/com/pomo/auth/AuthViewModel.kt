@@ -1,6 +1,3 @@
-// At the top of AuthViewModel.kt
-import com.pomo.data.AppDatabase  // Make sure this import is correct
-// app/src/main/java/com/pomo/auth/AuthViewModel.kt
 package com.pomo.auth
 
 import android.app.Application
@@ -28,6 +25,7 @@ data class AuthUiState(
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AppDatabase.getInstance(application)
     private val userDao = database.userDao()
+    private val studentDao = database.studentDao()
     
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
@@ -52,7 +50,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             try {
-                // Generate mentor ID if role is MENTOR
                 val generatedMentorId = if (role == UserRole.MENTOR) {
                     generateMentorId()
                 } else null
@@ -68,7 +65,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isLoggedIn = true
                 )
                 
-                // Check if user exists
                 val existingUser = userDao.getUserByEmail(email)
                 if (existingUser != null) {
                     _uiState.value = _uiState.value.copy(
@@ -78,14 +74,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 
-                // Save to database
                 userDao.insertUser(user)
                 
-                // If student, connect to mentor
-                if (role == UserRole.STUDENT && mentorId != null && mentorPhone != null) {
+                if (role == UserRole.STUDENT && !mentorId.isNullOrEmpty() && !mentorPhone.isNullOrEmpty()) {
                     val mentor = userDao.getUserByMentorId(mentorId)
                     if (mentor != null) {
-                        // Verify mentor phone matches
                         if (mentor.phoneNumber == mentorPhone) {
                             val connection = StudentConnection(
                                 studentId = user.id,
@@ -94,9 +87,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 studentPhone = phoneNumber,
                                 studentEmail = email
                             )
-                            database.studentDao().insertConnection(connection)
-                            
-                            // Notify mentor via sync (will implement)
+                            studentDao.insertConnection(connection)
                         } else {
                             _uiState.value = _uiState.value.copy(
                                 errorMessage = "Mentor phone number verification failed"
@@ -154,7 +145,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 }
                 
-                // Update login status
                 userDao.updateLoginStatus(user.id, true)
                 
                 _uiState.value = _uiState.value.copy(
