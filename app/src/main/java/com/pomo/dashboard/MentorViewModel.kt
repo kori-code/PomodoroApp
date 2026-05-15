@@ -1,15 +1,11 @@
-// At the top of MentorViewModel.kt
-import com.pomo.data.AppDatabase
-import com.pomo.pomodoro.SessionStatus
-// app/src/main/java/com/pomo/dashboard/MentorViewModel.kt
 package com.pomo.dashboard
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pomo.auth.StudentConnection
-import com.pomo.auth.User
 import com.pomo.data.AppDatabase
+import com.pomo.pomodoro.SessionStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,21 +52,19 @@ class MentorViewModel(application: Application) : AndroidViewModel(application) 
     fun loadConnectedStudents(mentorId: String) {
         viewModelScope.launch {
             val students = studentDao.getStudentsByMentor(mentorId)
-            val mentor = userDao.getUserById(mentorId)
             
             var totalScore = 0
             var totalSessionsCount = 0
             
             students.forEach { student ->
                 val sessions = sessionDao.getUserSessions(student.studentId)
-                val completed = sessions.count { it.status == com.pomo.pomodoro.SessionStatus.COMPLETED }
+                val completed = sessions.count { it.status == SessionStatus.COMPLETED }
                 val total = sessions.size
                 val score = if (total > 0) (completed * 100) / total else 0
                 
                 totalScore += score
                 totalSessionsCount += completed
                 
-                // Update student stats
                 studentDao.updateStudentStats(student.studentId, completed, score)
             }
             
@@ -86,6 +80,5 @@ class MentorViewModel(application: Application) : AndroidViewModel(application) 
     }
     
     fun logout() {
-        // Handle logout
     }
 }
