@@ -6,6 +6,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.pomo.auth.PomodoroSession
 import com.pomo.auth.StudentConnection
 import com.pomo.auth.User
 
@@ -29,7 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "kori_pomodoro_v2.db"
+                    "kori_pomodoro_v3.db"
                 ).fallbackToDestructiveMigration().build()
                 INSTANCE = instance
                 instance
