@@ -1,11 +1,8 @@
-// app/src/main/java/com/pomo/dashboard/StudentDashboard.kt
 package com.pomo.dashboard
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,13 +15,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pomo.pomodoro.PomodoroEngine
 import com.pomo.pomodoro.ProofChallengeDialog
-import kotlinx.coroutines.delay
+import com.pomo.pomodoro.TaskInputDialog
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,14 +39,13 @@ fun StudentDashboard(
     
     LaunchedEffect(userId) {
         viewModel.loadUserData(userId)
+        viewModel.initializePomodoro()
     }
     
-    // Listen for proof challenges
     LaunchedEffect(Unit) {
-        PomodoroEngine.onProofChallenge.collect { challenge ->
+        viewModel.proofChallengeFlow.collect { challenge ->
             currentChallenge = challenge
             showProofDialog = true
-            viewModel.pauseTimer()
         }
     }
     
@@ -58,14 +54,13 @@ fun StudentDashboard(
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = MaterialTheme.colorScheme.surface,
-                drawerShape = RoundedCornerShape(end = 20.dp)
+                drawerShape = RoundedCornerShape(20.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(24.dp)
                 ) {
-                    // User Profile Header
                     Surface(
                         modifier = Modifier.size(80.dp),
                         shape = CircleShape,
@@ -98,26 +93,25 @@ fun StudentDashboard(
                     
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                     
-                    // Menu Items
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Edit, null) },
                         label = { Text("Edit Profile") },
                         selected = false,
-                        onClick = { /* TODO: Edit profile */ }
+                        onClick = { }
                     )
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.History, null) },
                         label = { Text("Session History") },
                         selected = false,
-                        onClick = { /* TODO: Show history */ }
+                        onClick = { }
                     )
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Settings, null) },
                         label = { Text("Settings") },
                         selected = false,
-                        onClick = { /* TODO: Settings */ }
+                        onClick = { }
                     )
                     
                     Spacer(modifier = Modifier.weight(1f))
@@ -127,9 +121,11 @@ fun StudentDashboard(
                         label = { Text("Logout") },
                         selected = false,
                         onClick = {
-                            scope.launch { drawerState.close() }
-                            viewModel.logout()
-                            onLogout()
+                            scope.launch {
+                                drawerState.close()
+                                viewModel.logout()
+                                onLogout()
+                            }
                         }
                     )
                 }
@@ -157,7 +153,11 @@ fun StudentDashboard(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        IconButton(onClick = {
+                            scope.launch {
+                                drawerState.open()
+                            }
+                        }) {
                             Icon(Icons.Default.Menu, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     },
@@ -209,7 +209,6 @@ fun StudentDashboard(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Stats Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -236,7 +235,6 @@ fun StudentDashboard(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Timer Display
                     TimerDisplay(
                         secondsRemaining = uiState.secondsRemaining,
                         timerState = uiState.timerState
@@ -244,7 +242,6 @@ fun StudentDashboard(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Current Task
                     if (uiState.currentTask.isNotBlank() && uiState.timerState != PomodoroEngine.TimerState.IDLE) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -268,7 +265,6 @@ fun StudentDashboard(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Control Buttons
                     when (uiState.timerState) {
                         PomodoroEngine.TimerState.IDLE -> {
                             Button(
@@ -404,7 +400,7 @@ fun StudentDashboard(
                                     ) {
                                         Text("Try Again")
                                     }
-                                }
+                                )
                             }
                         }
                     }
@@ -413,7 +409,6 @@ fun StudentDashboard(
         }
     }
     
-    // Task Input Dialog
     if (showTaskDialog) {
         TaskInputDialog(
             onStart = { task ->
@@ -424,21 +419,16 @@ fun StudentDashboard(
         )
     }
     
-    // Proof Challenge Dialog
     if (showProofDialog && currentChallenge != null) {
         ProofChallengeDialog(
             challenge = currentChallenge!!,
             onCorrect = {
                 showProofDialog = false
-                viewModel.resumeTimer()
+                viewModel.submitProofAnswer(currentChallenge!!.answer)
             },
             onWrong = {
-                // Keep dialog open, allow retry
-                viewModel.proofCheckFailed()
-                if (currentChallenge!!.attemptsLeft <= 1) {
-                    showProofDialog = false
-                    viewModel.failSession("Proof challenge failed")
-                }
+                showProofDialog = false
+                viewModel.failSession("Proof challenge failed")
             }
         )
     }
@@ -496,27 +486,6 @@ fun TimerDisplay(secondsRemaining: Int, timerState: PomodoroEngine.TimerState) {
     val seconds = secondsRemaining % 60
     val timeString = String.format("%02d:%02d", minutes, seconds)
     
-    val gradientBrush = when (timerState) {
-        PomodoroEngine.TimerState.RUNNING -> Brush.horizontalGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.primary,
-                MaterialTheme.colorScheme.secondary
-            )
-        )
-        PomodoroEngine.TimerState.PAUSED -> Brush.horizontalGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.secondary,
-                MaterialTheme.colorScheme.tertiary
-            )
-        )
-        else -> Brush.horizontalGradient(
-            colors = listOf(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-            )
-        )
-    }
-    
     Card(
         modifier = Modifier
             .size(280.dp)
@@ -527,9 +496,7 @@ fun TimerDisplay(secondsRemaining: Int, timerState: PomodoroEngine.TimerState) {
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(gradientBrush, alpha = 0.1f),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -543,10 +510,10 @@ fun TimerDisplay(secondsRemaining: Int, timerState: PomodoroEngine.TimerState) {
                 Text(
                     when (timerState) {
                         PomodoroEngine.TimerState.IDLE -> "Ready to focus"
-                        PomodoroEngine.TimerState.RUNNING -> "Focus Mode 🔒"
-                        PomodoroEngine.TimerState.PAUSED -> "Verification Required 🧠"
-                        PomodoroEngine.TimerState.COMPLETED -> "Complete! 🎉"
-                        PomodoroEngine.TimerState.FAILED -> "Failed ❌"
+                        PomodoroEngine.TimerState.RUNNING -> "Focus Mode"
+                        PomodoroEngine.TimerState.PAUSED -> "Verification Required"
+                        PomodoroEngine.TimerState.COMPLETED -> "Complete!"
+                        PomodoroEngine.TimerState.FAILED -> "Failed"
                     },
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
