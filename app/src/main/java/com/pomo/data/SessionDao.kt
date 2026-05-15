@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/data/SessionDao.kt
 package com.pomo.data
 
 import androidx.room.*
@@ -15,4 +14,10 @@ interface SessionDao {
     
     @Query("SELECT * FROM pomodoro_sessions WHERE studentId = :studentId ORDER BY startTime DESC")
     suspend fun getStudentSessions(studentId: String): List<PomodoroSession>
+    
+    @Query("DELETE FROM pomodoro_sessions WHERE userId = :userId")
+    suspend fun deleteUserSessions(userId: String)
+    
+    @Query("DELETE FROM pomodoro_sessions WHERE startTime < :beforeTime")
+    suspend fun deleteOldSessions(beforeTime: Long)
 }
