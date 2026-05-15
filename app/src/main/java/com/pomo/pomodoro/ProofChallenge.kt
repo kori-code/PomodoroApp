@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/pomodoro/ProofChallenge.kt
 package com.pomo.pomodoro
 
 import androidx.compose.foundation.layout.*
@@ -47,7 +46,7 @@ fun ProofChallengeDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "🧠 Proof of Focus",
+                    "Proof of Focus",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
