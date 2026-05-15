@@ -1,4 +1,3 @@
-// app/src/main/java/com/pomo/auth/UserModel.kt
 package com.pomo.auth
 
 import androidx.room.Entity
@@ -14,6 +13,7 @@ data class User(
     val dateOfBirth: String,
     val phoneNumber: String,
     val email: String,
+    val password: String,  // NEW: Add password field
     val mentorId: String? = null,
     val connectedMentorId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
