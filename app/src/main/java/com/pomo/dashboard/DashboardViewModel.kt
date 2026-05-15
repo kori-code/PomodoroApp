@@ -29,6 +29,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val database = AppDatabase.getInstance(application)
     private val userDao = database.userDao()
     private val sessionDao = database.sessionDao()
+    private val studentDao = database.studentDao()
     
     private val pomodoroEngine = PomodoroEngine(application)
     
@@ -38,6 +39,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     val proofChallengeFlow = pomodoroEngine.onProofChallenge
     
     private var currentUserId: String = ""
+    private var currentUserRole: String = ""
     
     fun initializePomodoro() {
         viewModelScope.launch {
@@ -58,6 +60,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             
             val user = userDao.getUserById(userId)
             if (user != null) {
+                currentUserRole = user.role.name
                 val sessions = sessionDao.getUserSessions(userId)
                 val completed = sessions.count { it.status.name == "COMPLETED" }
                 val total = sessions.size
@@ -82,6 +85,22 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     fun startSession(taskName: String) {
         pomodoroEngine.startSession(taskName)
+        
+        // Save session start to database
+        viewModelScope.launch {
+            val session = PomodoroSession(
+                userId = currentUserId,
+                studentId = if (currentUserRole == "STUDENT") currentUserId else null,
+                taskName = taskName,
+                startTime = System.currentTimeMillis(),
+                endTime = System.currentTimeMillis() + (25 * 60 * 1000),
+                durationSeconds = 25 * 60,
+                status = SessionStatus.INTERRUPTED,
+                proofChecksPassed = 0,
+                proofChecksTotal = 0
+            )
+            sessionDao.insertSession(session)
+        }
     }
     
     fun pauseTimer() {
@@ -110,17 +129,41 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
     
+    fun refreshStudentData() {
+        loadUserData(currentUserId)
+    }
+    
     private fun calculateStreak(sessions: List<PomodoroSession>): Int {
-        return 0
+        // Simple streak calculation - groups by date
+        val completedDates = sessions
+            .filter { it.status.name == "COMPLETED" }
+            .map { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(java.util.Date(it.startTime)) }
+            .distinct()
+            .sortedDescending()
+        
+        var streak = 0
+        for (i in completedDates.indices) {
+            if (i == 0) streak = 1
+            else {
+                val prevDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                    .parse(completedDates[i - 1])
+                val currDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                    .parse(completedDates[i])
+                val diff = ((prevDate?.time ?: 0) - (currDate?.time ?: 0)) / (24 * 60 * 60 * 1000)
+                if (diff == 1L) streak++ else break
+            }
+        }
+        return streak
     }
     
     private fun getLevel(completed: Int): String = when {
-        completed >= 500 -> "Diamond"
-        completed >= 200 -> "Platinum"
-        completed >= 100 -> "Gold"
-        completed >= 50 -> "Silver"
-        completed >= 20 -> "Bronze"
-        completed >= 5 -> "Rookie"
-        else -> "Beginner"
+        completed >= 500 -> "💎 Diamond"
+        completed >= 200 -> "🏆 Platinum"
+        completed >= 100 -> "🥇 Gold"
+        completed >= 50 -> "🥈 Silver"
+        completed >= 20 -> "🥉 Bronze"
+        completed >= 5 -> "⭐ Rookie"
+        else -> "🌱 Beginner"
     }
 }
